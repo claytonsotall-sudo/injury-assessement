@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Injury Assessment</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f4f4f2;
+      --bg-info: #e6f1fb;
+      --text-primary: #1a1a18;
+      --text-secondary: #5f5e5a;
+      --text-tertiary: #888780;
+      --border: rgba(0,0,0,0.12);
+      --border-hover: rgba(0,0,0,0.28);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font: 'DM Sans', system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a;
+        --bg-secondary: #252523;
+        --text-primary: #f0efe9;
+        --text-secondary: #a8a79f;
+        --text-tertiary: #6e6d67;
+        --border: rgba(255,255,255,0.12);
+        --border-hover: rgba(255,255,255,0.28);
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-secondary);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    #app { width: 100%; max-width: 620px; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .form-card {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      border-radius: var(--radius-md);
+      padding: 4px 10px;
+      margin-bottom: 1rem;
+    }
+
+    h1 { font-size: 22px; font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem; line-height: 1.3; }
+    .subtitle { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.75rem; }
+
+    .start-btn {
+      background: var(--text-primary);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.15s;
+    }
+    .start-btn:hover { opacity: 0.82; }
+
+    .step-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .step-label { font-size: 13px; color: var(--text-tertiary); }
+    .step-dots { display: flex; gap: 5px; flex-wrap: wrap; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background 0.2s, width 0.2s; flex-shrink: 0; }
+    .dot.done { background: var(--text-primary); }
+    .dot.active { background: var(--text-primary); width: 16px; border-radius: 3px; }
+
+    .q-text { font-size: 17px; font-weight: 500; color: var(--text-primary); margin-bottom: 0.35rem; line-height: 1.5; }
+    .q-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.25rem; min-height: 1em; }
+
+    .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+    .options.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .option-btn {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 11px 14px;
+      font-size: 14px;
+      color: var(--text-primary);
+      cursor: pointer;
+      text-align: left;
+      font-family: var(--font);
+      transition: border-color 0.15s, background 0.15s;
+      line-height: 1.4;
+    }
+    .option-btn:hover { border-color: var(--border-hover); background: var(--bg-secondary); }
+    .option-btn.selected { border-color: var(--border-hover); background: var(--bg-secondary); font-weight: 500; }
+
+    .scale-wrap { margin-bottom: 1.5rem; }
+    .scale-track { display: flex; gap: 6px; margin-bottom: 8px; }
+    .scale-btn {
+      flex: 1;
+      min-width: 0;
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: var(--font);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+    }
+    .scale-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+    .scale-btn.selected { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); }
+    .scale-labels { display: flex; justify-content: space-between; }
+    .scale-labels span { font-size: 11px; color: var(--text-tertiary); }
+
+    .multi-note { font-size: 12px; color: var(--text-tertiary); margin-bottom: 0.75rem; }
+
+    .nav { display: flex; gap: 10px; }
+    .nav-btn {
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font);
+      border: 0.5px solid var(--border-hover);
+      background: transparent;
+      color: var(--text-primary);
+      transition: background 0.15s;
+    }
+    .nav-btn:hover { background: var(--bg-secondary); }
+    .nav-btn.primary { background: var(--text-primary); color: var(--bg); border-color: transparent; }
+    .nav-btn.primary:hover { opacity: 0.82; }
+    .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .waiting-inner { text-align: center; padding: 1.5rem 0; }
+    .waiting-icon {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--bg-secondary); border: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.25rem; font-size: 22px;
+    }
+    .waiting-title { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 0.4rem; }
+    .waiting-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 1.75rem; line-height: 1.6; }
+    .progress-wrap { background: var(--bg-secondary); border-radius: 999px; height: 6px; width: 100%; overflow: hidden; margin-bottom: 0.5rem; }
+    .progress-bar { height: 100%; background: var(--text-primary); border-radius: 999px; width: 0%; transition: width 0.35s ease; }
+    .progress-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 1.25rem; }
+
+    .steps-list { list-style: none; text-align: left; }
+    .steps-list li {
+      font-size: 13px; color: var(--text-secondary);
+      padding: 7px 0; border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; gap: 8px; transition: color 0.3s;
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .steps-list li.done { color: var(--text-primary); }
+    .check {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1.5px solid var(--border-hover); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; transition: background 0.3s, border-color 0.3s;
+    }
+    .done .check { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+
+    .result-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 1.25rem; }
+    .result-badge { background: var(--bg-secondary); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 10px 13px; font-size: 24px; flex-shrink: 0; }
+    .result-title { font-size: 19px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+    .result-sub { font-size: 13px; color: var(--text-secondary); }
+
+    .severity-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; }
+    .severity-pip { height: 6px; flex: 1; border-radius: 999px; background: var(--bg-secondary); overflow: hidden; }
+    .severity-fill { height: 100%; border-radius: 999px; background: var(--text-primary); transition: width 0.6s ease; }
+    .severity-label { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+
+    .result-body { font-size: 14px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 1.25rem; }
+
+    .rec-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+    .rec-list li { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px 14px; font-size: 14px; color: var(--text-primary); border: 0.5px solid var(--border); }
+
+    .disclaimer { font-size: 12px; color: var(--text-tertiary); border-top: 0.5px solid var(--border); padding-top: 1rem; line-height: 1.6; }
+    .restart-btn { margin-top: 1.25rem; background: transparent; border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 10px 20px; font-size: 14px; cursor: pointer; color: var(--text-secondary); font-family: var(--font); }
+    .restart-btn:hover { background: var(--bg-secondary); }
+
+    @media (max-width: 480px) {
+      .form-card { padding: 1.5rem; }
+      .options.grid-2 { grid-template-columns: 1fr; }
+      .scale-btn { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="screen-welcome" class="screen active form-card">
+    <div class="tag">Injury Assessment</div>
+    <h1>Let's identify what might be causing your pain</h1>
+    <p class="subtitle">Answer 7 quick questions about your symptoms and we'll help assess what might be going on.</p>
+    <button class="start-btn" onclick="startAssessment()">Start Assessment</button>
+  </div>
+
+  <div id="screen-questions" class="screen form-card">
+    <div class="step-meta">
+      <span class="step-label" id="step-label">Question 1 of 7</span>
+      <div class="step-dots" id="step-dots"></div>
+    </div>
+    <p class="q-text" id="q-text"></p>
+    <p class="q-desc" id="q-desc"></p>
+    <div id="q-body"></div>
+    <div class="nav">
+      <button class="nav-btn" id="back-btn" onclick="goBack()">Back</button>
+      <button class="nav-btn primary" id="next-btn" onclick="goNext()" disabled>Next</button>
+    </div>
+  </div>
+
+  <div id="screen-waiting" class="screen form-card">
+    <div class="waiting-inner">
+      <div class="waiting-icon">📋</div>
+      <p class="waiting-title">Analysing your responses</p>
+      <p class="waiting-sub">We're reviewing your symptoms and putting together a personalised assessment.</p>
+      <div class="progress-wrap"><div class="progress-bar" id="prog-bar"></div></div>
+      <p class="progress-label" id="prog-label">0%</p>
+      <ul class="steps-list">
+        <li id="st1"><span class="check"></span>Reviewing injury location</li>
+        <li id="st2"><span class="check"></span>Assessing onset and trauma history</li>
+        <li id="st3"><span class="check"></span>Evaluating pain severity</li>
+        <li id="st4"><span class="check"></span>Analysing primary symptoms</li>
+        <li id="st5"><span class="check"></span>Generating recommendations</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="screen-result" class="screen form-card">
+    <div class="result-header">
+      <div class="result-badge" id="res-badge">🩹</div>
+      <div>
+        <p class="result-title" id="res-title"></p>
+        <p class="result-sub">Based on your responses</p>
+      </div>
+    </div>
+    <div class="severity-row">
+      <div class="severity-pip"><div class="severity-fill" id="sev-fill" style="width:0%"></div></div>
+      <span class="severity-label" id="sev-label"></span>
+    </div>
+    <p class="result-body" id="res-body"></p>
+    <ul class="rec-list" id="rec-list"></ul>
+    <p class="disclaimer">This assessment is for informational purposes only and is not a medical diagnosis. Please consult a qualified healthcare professional for advice tailored to your situation.</p>
+    <button class="restart-btn" onclick="restart()">Start over</button>
+  </div>
+
+</div>
+
+<script>
+  const TOTAL = 7;
+
+  const questions = [
+    { id:'location', text:'Where is your injury located?', type:'single', options:['Head/Neck','Shoulder','Upper Back','Lower Back','Elbow','Wrist/Hand','Hip','Knee','Ankle/Foot','Other'] },
+    { id:'onset', text:'How did the pain begin?', type:'single', options:['Sudden (impact or fall)','Gradual (over days/weeks)','During activity or exercise','Unknown or unclear'] },
+    { id:'pain', text:'How severe is your pain?', desc:'On a scale of 1–10, where 1 is minimal and 10 is unbearable.', type:'scale' },
+    { id:'symptoms', text:'What are your primary symptoms?', type:'multi', options:['Sharp pain','Dull ache','Swelling','Stiffness','Numbness/Tingling','Weakness','Limited range of motion','Bruising'] },
+    { id:'impact', text:'How is this affecting your daily activity?', type:'single', options:['No impact','Mild — minor discomfort','Moderate — limits some activities','Severe — unable to do most things'] },
+    { id:'trauma', text:'Have you experienced any recent trauma or injury?', type:'single', options:['Yes, within the last 24 hours','Yes, within the last week','Yes, more than a week ago','No'] },
+    { id:'medical', text:'Have you sought any medical attention for this?', type:'single', options:['Not yet','Seen a doctor','Waiting for appointment','Self-treating'] }
+  ];
+
+  const RESULTS = {
+    fracture: {
+      badge:'🦴', title:'Possible Fracture',
+      body:'Your reported pain severity, combined with recent trauma and significant swelling, suggests a possible fracture or serious structural injury. This type of injury requires prompt medical evaluation to rule out bone damage.',
+      recs:['Seek medical attention as soon as possible — an X-ray may be needed','Immobilise the affected area and avoid putting weight on it','Apply ice wrapped in a cloth to reduce swelling (15–20 min intervals)','Do not attempt to self-treat until a fracture has been ruled out']
+    },
+    ligamentSprain: {
+      badge:'🔗', title:'Possible Ligament Sprain',
+      body:'Your symptoms — joint pain, swelling, bruising, and limited range of motion — are consistent with a ligament sprain. Sprains range from mild (Grade I) to severe (Grade III) and respond well to early, appropriate management.',
+      recs:['Rest, Ice, Compression, and Elevation (RICE) in the first 48 hours','Avoid activities that cause pain or instability','A physiotherapist can assess the grade of sprain and guide rehab','Grades II–III may require imaging — see a clinician if in doubt']
+    },
+    muscleStrain: {
+      badge:'💪', title:'Possible Muscle Strain',
+      body:'Sharp or dull pain with sudden onset during activity, combined with weakness, points toward a muscle strain. This is one of the most common sports and activity-related injuries and typically recovers well with the right approach.',
+      recs:['Rest the affected muscle for 24–48 hours after injury','Apply ice for 15–20 minutes several times a day in the first 48 hours','Gentle stretching and progressive loading once acute pain settles','See a physio if weakness persists or if you suspect a full muscle tear']
+    },
+    nerveCompression: {
+      badge:'⚡', title:'Possible Nerve Compression',
+      body:'Numbness, tingling, and weakness as your primary symptoms suggest nerve involvement — commonly caused by compression or irritation of a nerve. This can result from a herniated disc, tight muscles, or postural issues.',
+      recs:['Avoid positions or activities that aggravate the tingling or numbness','Gentle movement and posture correction can relieve minor compression','A physio or GP should assess nerve-related symptoms that persist beyond 1–2 weeks','Seek urgent care if you experience loss of bladder/bowel control or sudden severe weakness']
+    },
+    softTissue: {
+      badge:'🩹', title:'Possible Soft Tissue Injury',
+      body:'A gradual onset of dull ache with moderate stiffness is consistent with a soft tissue injury — such as tendinopathy, bursitis, or chronic muscle tension. These injuries often develop from repetitive strain or overuse.',
+      recs:['Reduce or modify activities causing the pain — avoid pushing through it','Apply heat after the first 48 hours to relax tight tissues','Eccentric strengthening exercises are effective for tendon issues — a physio can guide you','Soft tissue injuries often take weeks to months to fully resolve; consistency is key']
+    }
+  };
+
+  let current = 0;
+  let answers = {};
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function startAssessment() { current = 0; answers = {}; show('questions'); renderQuestion(); }
+
+  function renderQuestion() {
+    const q = questions[current];
+    document.getElementById('step-label').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+
+    const dots = document.getElementById('step-dots');
+    dots.innerHTML = '';
+    questions.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' active' : '');
+      dots.appendChild(d);
+    });
+
+    document.getElementById('q-text').textContent = q.text;
+    document.getElementById('q-desc').textContent = q.desc || '';
+
+    const body = document.getElementById('q-body');
+    body.innerHTML = '';
+
+    if (q.type === 'single') {
+      const wrap = document.createElement('div');
+      wrap.className = 'options' + (q.options.length > 6 ? ' grid-2' : '');
+      q.options.forEach(opt => {
+        const b = document.createElement('button');
+        b.className = 'option-btn' + (answers[q.id] === opt ? ' selected' : '');
+        b.textContent = opt;
+        b.onclick = () => {
+          answers[q.id] = opt;
+          wrap.querySelectorAll('.option-btn').forEach(x => x.classList.remove('selected'));
+          b.classList.add('selected');
+          document.getElementById('next-btn').disabled = false;
+        };
+        wrap.appendChild(b);
+      });
+      body.appendChild(wrap);
+
+    } else if (q.type === 'scale') {
+      const scaleWrap = document.createElement('div');
+      scaleWrap.className = 'scale-wrap';
+      const track = document.createElement('div');
+      track.className = 'scale-track';
+      for (let i = 1; i <= 10; i++) {
+        const b = document.createElement('button');
+        b.className = 'scale-btn' + (answers[q.id] === i ? ' selected' : '');
+        b.textContent = i;
+        b.onclick = () => {
+          answers[q.id] = i;
+          track.querySelectorAll('.scale-btn').forEach(x => x.classList.remove('selected'));
+          b.classList.add('selected');
+          document.getElementById('next-btn').disabled = false;
+        };
+        track.appendChild(b);
+      }
+      const labs = document.createElement('div');
+      labs.className = 'scale-labels';
+      labs.innerHTML = '<span>No pain</span><span>Unbearable</span>';
+      scaleWrap.appendChild(track);
+      scaleWrap.appendChild(labs);
+      body.appendChild(scaleWrap);
+
+    } else if (q.type === 'multi') {
+      const note = document.createElement('p');
+      note.className = 'multi-note';
+      note.textContent = 'Select all that apply';
+      body.appendChild(note);
+      const wrap = document.createElement('div');
+      wrap.className = 'options grid-2';
+      if (!answers[q.id]) answers[q.id] = [];
+      q.options.forEach(opt => {
+        const b = document.createElement('button');
+        b.className = 'option-btn' + (answers[q.id].includes(opt) ? ' selected' : '');
+        b.textContent = opt;
+        b.onclick = () => {
+          const idx = answers[q.id].indexOf(opt);
+          if (idx > -1) { answers[q.id].splice(idx, 1); b.classList.remove('selected'); }
+          else { answers[q.id].push(opt); b.classList.add('selected'); }
+          document.getElementById('next-btn').disabled = answers[q.id].length === 0;
+        };
+        wrap.appendChild(b);
+      });
+      body.appendChild(wrap);
+    }
+
+    document.getElementById('back-btn').disabled = current === 0;
+    document.getElementById('next-btn').textContent = current === TOTAL - 1 ? 'See results' : 'Next';
+
+    const hasAnswer = q.type === 'multi'
+      ? (answers[q.id] && answers[q.id].length > 0)
+      : (answers[q.id] !== undefined && answers[q.id] !== null);
+    document.getElementById('next-btn').disabled = !hasAnswer;
+  }
+
+  function goBack() { if (current > 0) { current--; renderQuestion(); } }
+
+  function goNext() {
+    const q = questions[current];
+    const hasAnswer = q.type === 'multi'
+      ? (answers[q.id] && answers[q.id].length > 0)
+      : (answers[q.id] !== undefined && answers[q.id] !== null);
+    if (!hasAnswer) return;
+    if (current < TOTAL - 1) { current++; renderQuestion(); }
+    else { startWaiting(); }
+  }
+
+  function startWaiting() {
+    show('waiting');
+    const bar = document.getElementById('prog-bar');
+    const label = document.getElementById('prog-label');
+    const stepEls = ['st1','st2','st3','st4','st5'].map(id => document.getElementById(id));
+    const checkpoints = [20, 40, 60, 80, 95];
+    let pct = 0;
+    const interval = setInterval(() => {
+      pct = Math.min(pct + 1, 100);
+      bar.style.width = pct + '%';
+      label.textContent = pct + '%';
+      checkpoints.forEach((cp, i) => {
+        if (pct >= cp && !stepEls[i].classList.contains('done')) {
+          stepEls[i].classList.add('done');
+          stepEls[i].querySelector('.check').textContent = '✓';
+        }
+      });
+      if (pct >= 100) { clearInterval(interval); setTimeout(showResult, 400); }
+    }, 30);
+  }
+
+  function diagnose() {
+    const syms = answers.symptoms || [];
+    const pain = answers.pain || 0;
+    const onset = answers.onset || '';
+    const trauma = answers.trauma || '';
+    const hasTrauma = trauma !== 'No';
+    const recentTrauma = trauma === 'Yes, within the last 24 hours' || trauma === 'Yes, within the last week';
+    const scores = { fracture:0, ligamentSprain:0, muscleStrain:0, nerveCompression:0, softTissue:0 };
+
+    if (recentTrauma && pain >= 7) scores.fracture += 4;
+    if (pain >= 7) scores.fracture += 2;
+    if (syms.includes('Swelling') && recentTrauma) scores.fracture += 2;
+
+    if (syms.includes('Swelling')) scores.ligamentSprain += 2;
+    if (syms.includes('Bruising')) scores.ligamentSprain += 2;
+    if (syms.includes('Limited range of motion')) scores.ligamentSprain += 2;
+    if (hasTrauma && !(recentTrauma && pain >= 7)) scores.ligamentSprain += 1;
+
+    const suddenOnset = onset === 'Sudden (impact or fall)' || onset === 'During activity or exercise';
+    const gradualOnset = onset === 'Gradual (over days/weeks)';
+
+    if (syms.includes('Sharp pain') && suddenOnset) scores.muscleStrain += 3;
+    if (syms.includes('Weakness') && suddenOnset) scores.muscleStrain += 2;
+    if (syms.includes('Dull ache') && suddenOnset) scores.muscleStrain += 1;
+
+    if (syms.includes('Numbness/Tingling')) scores.nerveCompression += 3;
+    if (syms.includes('Weakness') && syms.includes('Numbness/Tingling')) scores.nerveCompression += 2;
+
+    if (syms.includes('Dull ache') && gradualOnset) scores.softTissue += 3;
+    if (syms.includes('Stiffness')) scores.softTissue += 2;
+    if (!hasTrauma && gradualOnset) scores.softTissue += 2;
+
+    return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  function showResult() {
+    const key = diagnose();
+    const r = RESULTS[key];
+    const pain = answers.pain || 1;
+    document.getElementById('res-badge').textContent = r.badge;
+    document.getElementById('res-title').textContent = r.title;
+    document.getElementById('sev-fill').style.width = (pain * 10) + '%';
+    document.getElementById('sev-label').textContent = 'Pain level: ' + pain + '/10';
+    document.getElementById('res-body').textContent = r.body;
+    const recList = document.getElementById('rec-list');
+    recList.innerHTML = '';
+    r.recs.forEach(rec => {
+      const li = document.createElement('li');
+      li.textContent = rec;
+      recList.appendChild(li);
+    });
+    show('result');
+  }
+
+  function restart() {
+    answers = {}; current = 0;
+    document.querySelectorAll('.steps-list li').forEach(li => { li.classList.remove('done'); li.querySelector('.check').textContent = ''; });
+    document.getElementById('prog-bar').style.width = '0%';
+    document.getElementById('prog-label').textContent = '0%';
+    show('welcome');
+  }
+</script>
+</body>
+</html>
