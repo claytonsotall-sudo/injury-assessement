@@ -63,7 +63,6 @@
     h1 { font-size: 22px; font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem; line-height: 1.3; }
     .subtitle { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.75rem; }
 
-    /* Primary action button — orange */
     .start-btn {
       background: var(--accent);
       color: var(--accent-text);
@@ -148,7 +147,6 @@
       transition: background 0.15s;
     }
     .nav-btn:hover { background: var(--bg-secondary); }
-    /* Primary nav button — orange */
     .nav-btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; }
     .nav-btn.primary:hover { background: var(--accent-hover); }
     .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -182,6 +180,16 @@
     }
     .done .check { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+    /* Spinner for waiting on AI */
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .result-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 1.25rem; }
     .result-badge { background: #fef3ee; border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 10px 13px; font-size: 24px; flex-shrink: 0; }
     .result-title { font-size: 19px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
@@ -194,12 +202,70 @@
 
     .result-body { font-size: 14px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 1.25rem; }
 
+    /* Section header for result */
+    .result-section-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 0.6rem;
+    }
+
+    /* Red flags box */
+    .red-flags-box {
+      background: #fff5f5;
+      border: 0.5px solid rgba(200, 87, 58, 0.3);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 1.25rem;
+    }
+    .red-flags-box .rf-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .red-flags-box ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .red-flags-box ul li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding-left: 12px;
+      position: relative;
+    }
+    .red-flags-box ul li::before {
+      content: "–";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+
     .rec-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
     .rec-list li { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px 14px; font-size: 14px; color: var(--text-primary); border: 0.5px solid var(--border); }
 
     .disclaimer { font-size: 12px; color: var(--text-tertiary); border-top: 0.5px solid var(--border); padding-top: 1rem; line-height: 1.6; }
     .restart-btn { margin-top: 1.25rem; background: transparent; border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 10px 20px; font-size: 14px; cursor: pointer; color: var(--text-secondary); font-family: var(--font); }
     .restart-btn:hover { background: var(--bg-secondary); }
+
+    /* Error state */
+    .error-box {
+      background: #fff5f5;
+      border: 0.5px solid rgba(200,87,58,0.35);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+    }
 
     @media (max-width: 480px) {
       .form-card { padding: 1.5rem; }
@@ -256,6 +322,13 @@
       <span class="severity-label" id="severity-label">Severity</span>
     </div>
     <p class="result-body" id="result-body"></p>
+    <div id="red-flags-section" style="display:none">
+      <div class="red-flags-box">
+        <p class="rf-title">⚠️ When to seek care sooner</p>
+        <ul id="red-flags-list"></ul>
+      </div>
+    </div>
+    <div class="result-section-label">Recommendations</div>
     <ul class="rec-list" id="rec-list"></ul>
     <p class="disclaimer">⚠️ This is not a medical diagnosis. Always consult a healthcare professional for proper evaluation and treatment.</p>
     <button class="restart-btn" onclick="restartAssessment()">Start Over</button>
@@ -435,7 +508,8 @@ function goBack() {
   if (current > 0) renderQuestion(current - 1);
 }
 
-// Analysis / waiting screen
+// ─── Analysis / waiting screen ───────────────────────────────────────────────
+
 const analysisSteps = [
   "Reviewing symptom location",
   "Evaluating onset and duration",
@@ -443,7 +517,7 @@ const analysisSteps = [
   "Analyzing pain characteristics",
   "Checking aggravating factors",
   "Reviewing injury history",
-  "Generating assessment"
+  "Generating AI assessment"
 ];
 
 function runAnalysis() {
@@ -461,36 +535,142 @@ function runAnalysis() {
   const bar = document.getElementById("progress-bar");
   const label = document.getElementById("progress-label");
 
+  // Tick through the first 6 steps quickly, hold on the last one while AI runs
   function tick() {
-    if (step < items.length) {
+    if (step < items.length - 1) {
       items[step].classList.add("done");
       items[step].querySelector(".check").textContent = "✓";
       step++;
-      const pct = Math.round((step / items.length) * 100);
-      bar.style.width = pct + "%";
-      label.textContent = step < items.length ? analysisSteps[step] + "…" : "Finalizing…";
-      setTimeout(tick, 420);
+      bar.style.width = Math.round((step / items.length) * 85) + "%";
+      label.textContent = analysisSteps[step] + "…";
+      setTimeout(tick, 400);
     } else {
-      bar.style.width = "100%";
-      label.textContent = "Done!";
-      setTimeout(showResult, 500);
+      // Last step — show spinner while waiting for AI
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      items[step].querySelector(".check").replaceWith(spinner);
+      label.textContent = "Consulting AI…";
+      bar.style.width = "90%";
+      // Now call AI
+      callClaudeAPI().then(result => {
+        // Mark last step done
+        spinner.replaceWith(Object.assign(document.createElement("span"), { className: "check", textContent: "✓" }));
+        items[step].classList.add("done");
+        bar.style.width = "100%";
+        label.textContent = "Done!";
+        setTimeout(() => showResult(result), 500);
+      }).catch(err => {
+        console.error(err);
+        // Fallback to rule-based
+        bar.style.width = "100%";
+        label.textContent = "Done!";
+        setTimeout(() => showResult(buildFallbackResult()), 500);
+      });
     }
   }
   setTimeout(tick, 300);
 }
 
-function showResult() {
-  const result = buildResult();
-  document.getElementById("result-badge").textContent = result.badge;
-  document.getElementById("result-title").textContent = result.title;
-  document.getElementById("result-sub").textContent = result.sub;
-  document.getElementById("severity-fill").style.width = (result.severityPct) + "%";
-  document.getElementById("severity-label").textContent = result.severityText;
-  document.getElementById("result-body").textContent = result.body;
+// ─── Claude API call ──────────────────────────────────────────────────────────
 
+async function callClaudeAPI() {
+  const a = answers;
+  const characterList = Array.isArray(a.character) ? a.character.join(", ") : "not specified";
+  const aggravateList = Array.isArray(a.aggravate) ? a.aggravate.join(", ") : "not specified";
+  const historyList = Array.isArray(a.history) ? a.history.join(", ") : "not specified";
+
+  const userSummary = `
+Patient symptom intake:
+- Pain location: ${a.location || "not specified"}
+- Onset: ${a.onset || "not specified"}
+- Duration: ${a.duration || "not specified"}
+- Pain severity (0–10): ${a.severity ?? "not specified"}
+- Pain character: ${characterList}
+- Aggravating factors: ${aggravateList}
+- Relevant history: ${historyList}
+`.trim();
+
+  const systemPrompt = `You are a clinical musculoskeletal triage assistant helping users understand their symptoms. Based on the intake answers provided, generate a structured assessment. You must respond ONLY with valid JSON — no preamble, no markdown, no backticks.
+
+JSON schema:
+{
+  "badge": "<single emoji best representing the condition>",
+  "title": "<short probable diagnosis or condition name, e.g. 'Possible Rotator Cuff Strain'>",
+  "subtitle": "<one-line clarifying description, e.g. 'Gradual onset shoulder pain with overhead aggravation'>",
+  "severityText": "<e.g. 'Moderate (6/10)'>",
+  "analysis": "<2–3 sentence clinical analysis explaining the reasoning behind the assessment, referencing the specific symptoms provided>",
+  "redFlags": ["<warning sign 1 that warrants urgent care>", ...] or [],
+  "recommendations": ["<actionable recommendation 1>", "<actionable recommendation 2>", ...],
+  "urgency": "routine" | "soon" | "urgent"
+}
+
+Rules:
+- title should reflect the most likely condition given the combination of symptoms, not just the location
+- analysis should reason through the symptom pattern (onset, character, aggravators, history) like a triage clinician would
+- redFlags: list 1–3 symptoms that, if present or worsening, would warrant immediate/sooner care. Keep empty array if none relevant
+- recommendations: 3–5 actionable items, be specific (e.g. "Apply ice 15–20 min every 2 hours for first 48 hours" not just "ice it")
+- urgency: "urgent" if severity ≥ 8 or red flags are serious; "soon" if professional eval is recommended; "routine" for self-manageable
+- This is NOT a diagnosis. Frame all language appropriately (e.g. "possible", "may suggest", "consistent with")
+- Never recommend specific prescription medications`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userSummary }]
+    })
+  });
+
+  if (!response.ok) throw new Error(`API error ${response.status}`);
+
+  const data = await response.json();
+  const raw = data.content.map(b => b.text || "").join("").trim();
+  // Strip any accidental markdown fences
+  const clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+  return JSON.parse(clean);
+}
+
+// ─── Render result ────────────────────────────────────────────────────────────
+
+function showResult(result) {
+  const severity = answers.severity ?? 5;
+  const sevPct = (severity / 10) * 100;
+
+  document.getElementById("result-badge").textContent = result.badge || "🩺";
+  document.getElementById("result-title").textContent = result.title || "Assessment Result";
+  document.getElementById("result-sub").textContent = result.subtitle || result.sub || "";
+  document.getElementById("severity-fill").style.width = "0%";
+  document.getElementById("severity-label").textContent = result.severityText || `${severity}/10`;
+  document.getElementById("result-body").textContent = result.analysis || result.body || "";
+
+  // Red flags
+  const rfSection = document.getElementById("red-flags-section");
+  const rfList = document.getElementById("red-flags-list");
+  rfList.innerHTML = "";
+  const flags = result.redFlags || [];
+  if (flags.length > 0) {
+    rfSection.style.display = "block";
+    flags.forEach(f => {
+      const li = document.createElement("li");
+      li.textContent = f;
+      rfList.appendChild(li);
+    });
+  } else {
+    rfSection.style.display = "none";
+  }
+
+  // Recommendations
   const recList = document.getElementById("rec-list");
   recList.innerHTML = "";
-  result.recs.forEach(r => {
+  const recs = result.recommendations || result.recs || [];
+  // Add urgency banner rec if urgent
+  if (result.urgency === "urgent") {
+    recs.unshift("🚨 Consider seeking medical attention today given your pain level");
+  }
+  recs.forEach(r => {
     const li = document.createElement("li");
     li.textContent = r;
     recList.appendChild(li);
@@ -498,18 +678,19 @@ function showResult() {
 
   showScreen("screen-result");
   setTimeout(() => {
-    document.getElementById("severity-fill").style.width = result.severityPct + "%";
+    document.getElementById("severity-fill").style.width = sevPct + "%";
   }, 100);
 }
 
-function buildResult() {
+// ─── Rule-based fallback (used if API fails) ──────────────────────────────────
+
+function buildFallbackResult() {
   const loc = answers.location || "your area of pain";
   const severity = answers.severity ?? 5;
   const onset = answers.onset || "";
   const character = answers.character || [];
   const duration = answers.duration || "";
   const history = answers.history || [];
-  const aggravate = answers.aggravate || [];
 
   const sevPct = (severity / 10) * 100;
   let sevText = severity <= 3 ? "Mild" : severity <= 6 ? "Moderate" : "Severe";
@@ -520,53 +701,64 @@ function buildResult() {
   const hasNumb = character.includes("Numbness / tingling") || character.includes("Weakness");
   const isRepetitive = history.includes("Repetitive motion job or sport");
 
-  let badge = "🦴", title, sub, body;
-  const recs = [];
+  let badge = "🦴", title, subtitle, analysis;
+  const recommendations = [];
+  const redFlags = [];
 
   if (hasNumb && (loc.includes("Wrist") || loc.includes("Elbow"))) {
     badge = "⚡"; title = "Possible Nerve Compression";
-    sub = "e.g., Carpal Tunnel or Cubital Tunnel Syndrome";
-    body = `Numbness, tingling, or weakness in the ${loc} area can indicate nerve compression. This is especially common with repetitive wrist or elbow use. A healthcare professional can confirm with a physical exam or nerve conduction study.`;
-    recs.push("🏥 See a doctor or physiotherapist soon");
-    recs.push("🧤 Avoid repetitive bending of the wrist/elbow");
-    recs.push("💤 Use a wrist/elbow splint at night if available");
+    subtitle = "e.g., Carpal Tunnel or Cubital Tunnel Syndrome";
+    analysis = `Numbness, tingling, or weakness in the ${loc} area can indicate nerve compression. This is especially common with repetitive wrist or elbow use. A healthcare professional can confirm with a physical exam or nerve conduction study.`;
+    recommendations.push("See a doctor or physiotherapist soon");
+    recommendations.push("Avoid repetitive bending of the wrist/elbow");
+    recommendations.push("Use a wrist/elbow splint at night if available");
+    redFlags.push("Progressive weakness or loss of grip strength");
+    redFlags.push("Symptoms spreading up the arm");
   } else if (isAcute && hasSwelling) {
     badge = "🧊"; title = "Possible Acute Sprain or Strain";
-    sub = `Sudden onset with swelling in the ${loc} area`;
-    body = `Your symptoms suggest an acute soft tissue injury such as a sprain (ligament) or strain (muscle/tendon). The sudden onset and swelling are consistent with trauma or overload. Rest and early management are important.`;
-    recs.push("🧊 Apply ice for 15–20 min every 2 hours for 48 hrs");
-    recs.push("🩹 Compress and elevate if a limb is affected");
-    recs.push("🏥 See a doctor if swelling is severe or you can't bear weight");
-    recs.push("💊 Consider OTC pain relief (follow package instructions)");
+    subtitle = `Sudden onset with swelling in the ${loc} area`;
+    analysis = `Your symptoms suggest an acute soft tissue injury such as a sprain (ligament) or strain (muscle/tendon). The sudden onset and swelling are consistent with trauma or overload. Rest and early management are important.`;
+    recommendations.push("Apply ice for 15–20 min every 2 hours for 48 hours");
+    recommendations.push("Compress and elevate if a limb is affected");
+    recommendations.push("See a doctor if swelling is severe or you can't bear weight");
+    recommendations.push("Consider OTC pain relief (follow package instructions)");
+    redFlags.push("Unable to bear weight or move the joint");
+    redFlags.push("Significant bruising developing rapidly");
   } else if (isRepetitive && !isAcute) {
     badge = "🔄"; title = "Possible Overuse / Repetitive Strain Injury";
-    sub = `Gradual onset in the ${loc} area`;
-    body = `Gradual pain in the context of repetitive activity suggests an overuse injury. These include tendinopathies, stress reactions, and bursitis. Early load management helps prevent chronicity.`;
-    recs.push("📉 Reduce the aggravating activity temporarily");
-    recs.push("🧘 Begin gentle stretching and mobility work");
-    recs.push("🏋️ Gradual load progression once pain settles");
-    recs.push("🏥 Physiotherapy assessment recommended");
+    subtitle = `Gradual onset in the ${loc} area`;
+    analysis = `Gradual pain in the context of repetitive activity suggests an overuse injury. These include tendinopathies, stress reactions, and bursitis. Early load management helps prevent chronicity.`;
+    recommendations.push("Reduce the aggravating activity temporarily");
+    recommendations.push("Begin gentle stretching and mobility work");
+    recommendations.push("Gradual load progression once pain settles");
+    recommendations.push("Physiotherapy assessment recommended");
+    redFlags.push("Pain waking you from sleep");
+    redFlags.push("Sudden sharp increase in pain");
   } else if (isChron) {
     badge = "📋"; title = "Chronic / Persistent Pain Pattern";
-    sub = `Ongoing pain in the ${loc} area`;
-    body = `Your pain has been present for a longer period, which suggests a chronic or persistent condition. This can include arthritis, ongoing tendinopathy, or sensitized pain pathways. A thorough professional assessment is recommended.`;
-    recs.push("🏥 See a doctor or physiotherapist for full evaluation");
-    recs.push("🧘 Explore low-impact movement like swimming or walking");
-    recs.push("😴 Prioritize sleep and stress management");
-    recs.push("📓 Keep a pain diary to identify triggers");
+    subtitle = `Ongoing pain in the ${loc} area`;
+    analysis = `Your pain has been present for a longer period, which suggests a chronic or persistent condition. This can include arthritis, ongoing tendinopathy, or sensitized pain pathways. A thorough professional assessment is recommended.`;
+    recommendations.push("See a doctor or physiotherapist for full evaluation");
+    recommendations.push("Explore low-impact movement like swimming or walking");
+    recommendations.push("Prioritize sleep and stress management");
+    recommendations.push("Keep a pain diary to identify triggers");
   } else {
     badge = "🩺"; title = "General Musculoskeletal Pain";
-    sub = `${sevText} pain in the ${loc} area`;
-    body = `Based on your answers, you appear to have musculoskeletal pain in the ${loc} region. Without more specific red flags, this is likely manageable with conservative care. Monitor symptoms and seek professional advice if they worsen.`;
-    recs.push("🧊 Ice or heat depending on what relieves it");
-    recs.push("🚶 Gentle movement as tolerated");
-    recs.push("💊 OTC pain relief if needed (follow instructions)");
-    recs.push("🏥 See a doctor if it doesn't improve in 5–7 days");
+    subtitle = `${sevText} pain in the ${loc} area`;
+    analysis = `Based on your answers, you appear to have musculoskeletal pain in the ${loc} region. Without more specific red flags, this is likely manageable with conservative care. Monitor symptoms and seek professional advice if they worsen.`;
+    recommendations.push("Ice or heat depending on what relieves it");
+    recommendations.push("Gentle movement as tolerated");
+    recommendations.push("OTC pain relief if needed (follow instructions)");
+    recommendations.push("See a doctor if it doesn't improve in 5–7 days");
   }
 
-  if (severity >= 8) recs.unshift("🚨 High pain level — consider seeking care today");
-
-  return { badge, title, sub, body, recs, severityPct: sevPct, severityText: `${sevText} (${severity}/10)` };
+  return {
+    badge, title, subtitle, analysis,
+    redFlags,
+    recommendations,
+    severityText: `${sevText} (${severity}/10)`,
+    urgency: severity >= 8 ? "urgent" : "routine"
+  };
 }
 
 function restartAssessment() {
